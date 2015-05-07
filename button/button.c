@@ -16,12 +16,12 @@ static int PID = 0;
 
 /* Define GPIOs for LEDs */
 static struct gpio leds[] = {
-        {  18, GPIOF_OUT_INIT_HIGH, "LED 1" },
+        {  25, GPIOF_OUT_INIT_HIGH, "LED 1" },
 };
 
 /* Define GPIOs for BUTTONS */
 static struct gpio buttons[] = {
-        { 23, GPIOF_IN, "BUTTON 1" },   // turns LED on
+        { 8, GPIOF_IN, "BUTTON 1" },   // turns LED on
 };
 
 /* Later on, the assigned IRQ numbers for the buttons are stored here */
@@ -45,7 +45,6 @@ static irqreturn_t button_isr(int irq, void *data)
                 sendMsg(PID,buf);
             }
     }
-
 
     return IRQ_HANDLED;
 }
