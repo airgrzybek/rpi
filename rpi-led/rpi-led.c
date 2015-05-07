@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <asm/uaccess.h>
 /*
  *  Prototypes - this would normally go in a .h file
  */
@@ -39,12 +40,17 @@ ssize_t led_state_show(struct device *dev, struct device_attribute *attr,
             char *buf);
 static ssize_t led_state_store(struct device *dev, struct device_attribute *attr,
         const char *buf, size_t count);
+ssize_t led_period_show(struct device *dev, struct device_attribute *attr,
+            char *buf);
+static ssize_t led_period_store(struct device *dev, struct device_attribute *attr,
+        const char *buf, size_t count);
+
 
 struct GpioRegisters *s_pGpioRegisters;
 
 static DEVICE_ATTR(ledset, 0200, NULL, led_state_store);
 static DEVICE_ATTR(state, 0200, led_state_show, led_state_store);
-
+static DEVICE_ATTR(period,0600, led_period_show, led_period_store);
 
 static struct class_attribute led_class_attrs[] = {
     __ATTR(export, 0200, NULL, export_store),
@@ -180,6 +186,66 @@ static ssize_t led_state_store(struct device *dev, struct device_attribute *attr
     return count;
 }
 
+ssize_t led_period_show(struct device *dev, struct device_attribute *attr,
+            char *buf)
+{
+    int GPIO = dev->devt;
+    struct timer_data_struct * timer_data = NULL;
+    struct list_head * head, *q;
+    int period = 0;
+
+    printk(KERN_INFO "Show period for %d\n",GPIO);
+
+    list_for_each_safe( head, q, &timer_list)
+    {
+       timer_data = list_entry(head,struct timer_data_struct, list);
+       if(NULL != timer_data)
+       {
+           printk(KERN_INFO "timerGPIO = %d\n",timer_data->GPIO);
+           if(GPIO == timer_data->GPIO)
+           {
+               period = timer_data->period;
+               break;
+           }
+       }
+       else
+       {
+           printk(KERN_ERR "timer_data is NULL\n");
+       }
+    }
+
+    return (ssize_t)sprintf(buf,"Led%d blink period is %d\n",GPIO,period);
+}
+
+static ssize_t led_period_store(struct device *dev, struct device_attribute *attr,
+        const char *buf, size_t count)
+{
+    int GPIO = dev->devt;
+    struct timer_data_struct * timer_data = NULL;
+    int period = simple_strtol(buf,NULL,0);
+    struct list_head * head, *q;
+
+    printk(KERN_INFO "Store data for %d\n",GPIO);
+
+    list_for_each_safe( head, q, &timer_list)
+    {
+       timer_data = list_entry(head,struct timer_data_struct, list);
+       if(NULL != timer_data)
+       {
+           printk(KERN_INFO "timerGPIO = %d\n",timer_data->GPIO);
+           if(GPIO == timer_data->GPIO)
+           {
+               timer_data->period = period;
+               break;
+           }
+       }
+       else
+       {
+           printk(KERN_ERR "timer_data is NULL\n");
+       }
+    }
+    return count;
+}
 
 ssize_t export_store(struct class *dev, struct class_attribute *attr,
         const char *buf, size_t count)
@@ -210,6 +276,7 @@ ssize_t export_store(struct class *dev, struct class_attribute *attr,
     printk(KERN_INFO "Create device file\n");
 
     device_create_file(childDev, &dev_attr_state);
+    device_create_file(childDev, &dev_attr_period);
 
     return count;
 }
