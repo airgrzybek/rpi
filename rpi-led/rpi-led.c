@@ -15,6 +15,19 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
+
+
+#ifdef DEBUG
+#define debug(...)          printk(KERN_DEBUG __VA_ARGS__);
+#else
+#define debug(...)
+#endif
+
+#define info(...)           printk(KERN_INFO __VA_ARGS__);
+#define error(...)          printk(KERN_ERR __VA_ARGS__);
+#define warrning(...)       printk(KERN_WARNING __VA_ARGS__);
+#define critical(...)       printk(KERN_CRIT __VA_ARGS__);
+
 /*
  *  Prototypes - this would normally go in a .h file
  */
@@ -132,7 +145,7 @@ static void BlinkTimerHandler(unsigned long timer)
     }
     else
     {
-        printk(KERN_ERR "timer_data is NULL\n");
+        error("timer_data is NULL\n");
     }
 }
 
@@ -140,7 +153,7 @@ ssize_t led_state_show(struct device *dev, struct device_attribute *attr,
             char *buf)
 {
     int result =0;
-    printk(KERN_INFO "LED show state invoked\n");
+    debug("LED show state invoked\n");
 
     return result;
 }
@@ -149,24 +162,23 @@ static ssize_t led_state_store(struct device *dev, struct device_attribute *attr
 {
     int GPIO = dev->devt;
     struct timer_data_struct * timer_data = NULL;
-    printk(KERN_INFO "LED store state invoked for %s\n",dev->init_name);
-    printk(KERN_INFO "buffor: %s strlen: %d strcmp: %d\n", buf,strlen(buf), strlen("off\n"));
+    debug("LED store state invoked for %s\n",dev->init_name);
 
     deleteTimer(GPIO);
 
     if(0 == strcmp("on\n",buf))
     {
-        printk(KERN_INFO "led_state_store: on\n");
+        debug("led_state_store: on\n");
         SetGPIOOutputValue(GPIO,false);
     }
     else if(0 == strcmp("off\n",buf))
     {
-        printk(KERN_INFO "led_state_store: off\n");
+        debug("led_state_store: off\n");
         SetGPIOOutputValue(GPIO,true);
     }
     else if(0 == strcmp("blink\n",buf))
     {
-        printk(KERN_INFO "led_state_store: blink\n");
+        debug("led_state_store: blink\n");
 
         timer_data = (struct timer_data_struct *)
                     kmalloc( sizeof(struct timer_data_struct), GFP_KERNEL );
@@ -180,7 +192,7 @@ static ssize_t led_state_store(struct device *dev, struct device_attribute *attr
     }
     else
     {
-        printk(KERN_ERR "led_state_store: Operation not supported\n");
+        error("led_state_store: Operation not supported\n");
     }
 
     return count;
@@ -194,14 +206,14 @@ ssize_t led_period_show(struct device *dev, struct device_attribute *attr,
     struct list_head * head, *q;
     int period = 0;
 
-    printk(KERN_INFO "Show period for %d\n",GPIO);
+    info("Show period for %d\n",GPIO);
 
     list_for_each_safe( head, q, &timer_list)
     {
        timer_data = list_entry(head,struct timer_data_struct, list);
        if(NULL != timer_data)
        {
-           printk(KERN_INFO "timerGPIO = %d\n",timer_data->GPIO);
+           debug("timerGPIO = %d\n",timer_data->GPIO);
            if(GPIO == timer_data->GPIO)
            {
                period = timer_data->period;
@@ -210,7 +222,7 @@ ssize_t led_period_show(struct device *dev, struct device_attribute *attr,
        }
        else
        {
-           printk(KERN_ERR "timer_data is NULL\n");
+           error("timer_data is NULL\n");
        }
     }
 
@@ -256,7 +268,7 @@ ssize_t export_store(struct class *dev, struct class_attribute *attr,
 
     sprintf(name,"led%d",GPIO);
 
-    printk(KERN_INFO "LED %d is about to be switched on\n",GPIO);
+    debug("LED %d is about to be switched on\n",GPIO);
     SetGPIOFunction(GPIO,1);
     SetGPIOOutputValue(GPIO,false);
 
@@ -362,8 +374,20 @@ led_init(void)
 static void __exit
 led_exit(void)
 {
-    printk(KERN_INFO "LED DRIVER EXIT\n");
+    struct class_dev_iter iter;
+    struct device *dev;
+    info("LED DRIVER EXIT\n");
     deleteTimers(0);
+
+    class_dev_iter_init(&iter, &deviceClass, deviceObject, NULL);
+    while ((dev = class_dev_iter_next(&iter)))
+    {
+        info("Delete dev = %d\n",dev->devt);
+        device_destroy(&deviceClass,dev->devt);
+    }
+    class_dev_iter_exit(&iter);
+
+
     device_destroy(&deviceClass, 0);
     class_unregister(&deviceClass);
 }

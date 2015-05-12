@@ -1,4 +1,4 @@
-obj-m := rpi-led.o 
+obj-m := tempsensor.o 
 
 #KDIR  := /lib/modules/$(shell uname -r)/build
 KDIR  := /home/dpowazka/rpi/rpi-buildroot/output/build/linux-custom/
