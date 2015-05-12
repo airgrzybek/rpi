@@ -32,7 +32,6 @@
 #define T_BIT_HIGH_L                    70
 #define T_BIT_HIGH_H                    90
 
-
 #define NSEC_TO_USEC(x) (x)/1000
 
 struct sock * sk                        = NULL;
@@ -55,6 +54,9 @@ static struct gpio temp_data_gpio =
 
 /* Later on, the assigned IRQ numbers for the buttons are stored here */
 static int data_irq                      = -1;
+
+
+//static inline s64 nsec_to_usec(s64 time) { return time / 1000; }
 
 static int sendMsg(int pid, const char * buffer);
 
@@ -123,8 +125,8 @@ static irqreturn_t temp_data_isr(int irq, void *data)
         {
             if( value == 0 )
             {
-                t_start_low = NSEC_TO_USEC(time.tv64);
-                t_end_high  = NSEC_TO_USEC(time.tv64);
+                t_start_low = (time.tv64);
+                t_end_high  = (time.tv64);
 
                 // calc time in high time
                 t_high = t_end_high - t_start_high;
@@ -141,8 +143,8 @@ static irqreturn_t temp_data_isr(int irq, void *data)
             }
             else
             {
-                t_end_low    = NSEC_TO_USEC(time.tv64);
-                t_start_high = NSEC_TO_USEC(time.tv64);
+                t_end_low    = (time.tv64);
+                t_start_high = (time.tv64);
 
                 // calc time in low state
                 t_low = t_end_low - t_start_low;
@@ -161,8 +163,8 @@ static irqreturn_t temp_data_isr(int irq, void *data)
         {
             if( 1 == value )
             {
-                t_start_high = NSEC_TO_USEC(time.tv64);
-                t_end_low    = NSEC_TO_USEC(time.tv64);
+                t_start_high = (time.tv64);
+                t_end_low    = (time.tv64);
 
                 t_low = t_end_low - t_start_low;
 
@@ -170,8 +172,8 @@ static irqreturn_t temp_data_isr(int irq, void *data)
             }
             else if (-1 < data_pos_bit)
             {
-                t_end_high  = NSEC_TO_USEC(time.tv64);
-                t_start_low = NSEC_TO_USEC(time.tv64);
+                t_end_high  = (time.tv64);
+                t_start_low = (time.tv64);
                 t_high = t_end_high - t_start_high;
 
                 info("Data Seq: t_high = %llu\n",t_high);
