@@ -27,17 +27,24 @@
 #define T_START_BIT                     50 // usec
 #define T_START_TRANS                   80 // usec
 #define START_TIME                      500 // msec
+#define T_BIT_LOW_L                     20
+#define T_BIT_LOW_H                     30
+#define T_BIT_HIGH_L                    70
+#define T_BIT_HIGH_H                    90
+
+
+#define NSEC_TO_USEC(x) (x)/1000
 
 struct sock * sk                        = NULL;
 static int PID                          = 0;
 static struct timer_list data_timer;
 static struct hrtimer hr_timer;
-static volatile ktime_t t_start_low;
-static volatile ktime_t t_end_low;
-static volatile ktime_t t_start_high;
-static volatile ktime_t t_end_high;
-static volatile signed long long t_low              = 0;
-static volatile signed long long t_high             = 0;
+static volatile s64 t_start_low         = 0;
+static volatile s64 t_end_low           = 0;
+static volatile s64 t_start_high        = 0;
+static volatile s64 t_end_high          = 0;
+static volatile s64 t_low               = 0;
+static volatile s64 t_high              = 0;
 static bool start_seq                   = false;
 static bool data_seq                    = false;
 static unsigned long DATA               = 0;
@@ -93,10 +100,10 @@ static int transmissionStart(void)
     mod_timer(&data_timer, jiffies + msecs_to_jiffies(START_TIME));
 
     start_seq = true;
-    t_start_low = ktime_get();
-    t_start_high = ktime_get();
-    t_end_low = ktime_get();
-    t_end_high = ktime_get();
+    t_start_low = ktime_get().tv64;
+    t_start_high = ktime_get().tv64;
+    t_end_low = ktime_get().tv64;
+    t_end_high = ktime_get().tv64;
 
     return 0;
 }
@@ -116,14 +123,14 @@ static irqreturn_t temp_data_isr(int irq, void *data)
         {
             if( value == 0 )
             {
-                t_start_low = time;
-                t_end_high  = time;
+                t_start_low = NSEC_TO_USEC(time.tv64);
+                t_end_high  = NSEC_TO_USEC(time.tv64);
 
                 // calc time in high time
-                t_high = t_end_high.tv64 - t_start_high.tv64;
+                t_high = t_end_high - t_start_high;
 
                 info("Sltart Seq: t_start_high = %llu, t_end_high = %llu, t_high = %llu, ktime = %llu\n",
-                        t_start_high.tv64, t_end_high.tv64, t_high,time.tv64);
+                        t_start_high, t_end_high, t_high,time.tv64);
 
                 if(T_START_TRANS == t_high)
                 {
@@ -134,14 +141,14 @@ static irqreturn_t temp_data_isr(int irq, void *data)
             }
             else
             {
-                t_end_low    = time;
-                t_start_high = time;
+                t_end_low    = NSEC_TO_USEC(time.tv64);
+                t_start_high = NSEC_TO_USEC(time.tv64);
 
                 // calc time in low state
-                t_low = t_end_low.tv64 - t_start_low.tv64;
+                t_low = t_end_low - t_start_low;
 
                 info("Start Seq: t_start_low = %llu, t_end_low = %llu, t_low = %llu\n",
-                        t_start_low.tv64, t_end_low.tv64, t_low);
+                        t_start_low, t_end_low, t_low);
 
                 if(T_START_TRANS == t_low)
                 {
@@ -154,18 +161,18 @@ static irqreturn_t temp_data_isr(int irq, void *data)
         {
             if( 1 == value )
             {
-                t_start_high = ktime_get();
-                t_end_low    = ktime_get();
+                t_start_high = NSEC_TO_USEC(time.tv64);
+                t_end_low    = NSEC_TO_USEC(time.tv64);
 
-                t_low = t_end_low.tv64 - t_start_low.tv64;
+                t_low = t_end_low - t_start_low;
 
                 info("Data Seq: t_low = %llu\n",t_low);
             }
             else if (-1 < data_pos_bit)
             {
-                t_end_high  = ktime_get();
-                t_start_low = ktime_get();
-                t_high = t_end_high.tv64 - t_start_high.tv64;
+                t_end_high  = NSEC_TO_USEC(time.tv64);
+                t_start_low = NSEC_TO_USEC(time.tv64);
+                t_high = t_end_high - t_start_high;
 
                 info("Data Seq: t_high = %llu\n",t_high);
 
