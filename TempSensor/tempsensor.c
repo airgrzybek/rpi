@@ -10,11 +10,11 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 
-#define debug(...)          printk(KERN_DEBUG __VA_ARGS__);
-#define info(...)           printk(KERN_INFO __VA_ARGS__);
-#define error(...)          printk(KERN_ERR __VA_ARGS__);
-#define warrning(...)       printk(KERN_WARNING __VA_ARGS__);
-#define critical(...)       printk(KERN_CRIT __VA_ARGS__);
+#define debug(...)                      printk(KERN_DEBUG __VA_ARGS__);
+#define info(...)                       printk(KERN_INFO __VA_ARGS__);
+#define error(...)                      printk(KERN_ERR __VA_ARGS__);
+#define warrning(...)                   printk(KERN_WARNING __VA_ARGS__);
+#define critical(...)                   printk(KERN_CRIT __VA_ARGS__);
 
 #define NETLINK_USER                    25
 #define DATA_GPIO                       7
@@ -32,7 +32,7 @@
 #define T_BIT_HIGH_L                    70
 #define T_BIT_HIGH_H                    90
 
-#define NSEC_TO_USEC(x) (x)/1000
+#define NSEC_TO_USEC(x)                 (x)/1000
 
 struct sock * sk                        = NULL;
 static int PID                          = 0;
@@ -60,7 +60,7 @@ static int data_irq                      = -1;
 
 static int sendMsg(int pid, const char * buffer);
 
-static void transmissionAcceptance(unsigned long data)
+static void startTransmissionHandler(unsigned long data)
 {
     int result = 0;
 
@@ -89,11 +89,11 @@ enum hrtimer_restart my_hrtimer_callback( struct hrtimer *timer )
   return HRTIMER_NORESTART;
 }
 
-static int transmissionStart(void)
+static int startTransmission(void)
 {
     mdelay(5000);
 
-    setup_timer(&data_timer, transmissionAcceptance, (unsigned long)NULL);
+    setup_timer(&data_timer, startTransmissionHandler, (unsigned long)NULL);
 
     // gpio low
     gpio_set_value(temp_data_gpio.gpio, 0);
@@ -101,6 +101,7 @@ static int transmissionStart(void)
     // run timer
     mod_timer(&data_timer, jiffies + msecs_to_jiffies(START_TIME));
 
+    // init some variables
     start_seq = true;
     t_start_low = ktime_get().tv64;
     t_start_high = ktime_get().tv64;
@@ -321,7 +322,7 @@ temp_sensor_init(void)
 
 
         info("start transmission\n");
-        transmissionStart();
+        startTransmission();
     }
 
 
