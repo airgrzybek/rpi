@@ -19,6 +19,7 @@
 #define critical(...)                   printk(KERN_CRIT __VA_ARGS__);
 
 static struct timer_list data_timer;
+static struct timer_list guard_timer;
 static volatile s64 t_start_low = 0;
 static volatile s64 t_end_low = 0;
 static volatile s64 t_start_high = 0;
@@ -41,17 +42,21 @@ static const limits start_ack       = { .min = T_START_ACK_L, .max = T_START_ACK
 /* Later on, the assigned IRQ numbers for the buttons are stored here */
 static int data_irq = -1;
 
-static unsigned long long decode(unsigned long long data,  unsigned long bit)
+static unsigned char decode(unsigned long long data,  unsigned long bit)
 {
     return (data & (0xffULL << bit)) >> bit;
 }
 
-static unsigned long long checksum(unsigned long long data)
+static unsigned char checksum(unsigned long long data)
 {
-    unsigned long crc = 0;
-
     return (decode(data,32) + decode(data,24) + decode(data,16) + decode(data,8))&0xFF;
 }
+
+static void guardTimerHandler(unsigned long data)
+{
+    info("Guard timer expired - transmission aborted!\n");
+}
+
 
 static void startTransmissionHandler(unsigned long data)
 {
@@ -73,13 +78,10 @@ static void startTransmissionHandler(unsigned long data)
         info("value 123= %d\n", result);
         sequence = START;
     }
-}
 
-enum hrtimer_restart my_hrtimer_callback(struct hrtimer *timer)
-{
-    error("my_hrtimer_callback called (%ld).\n", jiffies);
-    //start_seq = data_seq = false;
-    return HRTIMER_NORESTART;
+    // run guard timer
+    setup_timer(&guard_timer, guardTimerHandler, (unsigned long)NULL);
+    mod_timer(&guard_timer, jiffies + msecs_to_jiffies(T_GUARD_TIMEOUT));
 }
 
 static int startTransmission(void)
@@ -109,7 +111,7 @@ static irqreturn_t temp_data_isr(int irq, void *data)
 {
     int value = gpio_get_value(temp_data_gpio.gpio);
     ktime_t time = ktime_get();
-    unsigned long long crc = 0;
+    unsigned char crc = 0;
     info("data_pin 1 %s", value == 0 ? "low" : "high");
     if (irq == data_irq)
     {
@@ -186,7 +188,7 @@ static irqreturn_t temp_data_isr(int irq, void *data)
                 }
                 else
                 {
-                    info("pizda blada\n");
+                    info("decoding error\n");
                 }
                 info("received data = %#llx\n", receivedData);
 
@@ -196,7 +198,7 @@ static irqreturn_t temp_data_isr(int irq, void *data)
                     info("End of data transmission\n");
                     info("Data ll = %#llx\n", receivedData);
                     crc = checksum(receivedData);
-                    info("crc = %#llx\n",crc);
+                    info("crc = %#x\n",crc);
                     if(crc == (receivedData & CRC_MASK))
                     {
                         info("CRC OK \n");
@@ -209,8 +211,7 @@ static irqreturn_t temp_data_isr(int irq, void *data)
 
         case STOP: // no break
         default:
-            info("Wrong sequence\n")
-            ;
+            info("Wrong sequence\n");
             break;
         }
     }
