@@ -1,9 +1,14 @@
 obj-m := tempsensor.o 
 
+USER := grzybek
+BROOT_PATH := /home/$(USER)/projects/rpi/rpi-buildroot
+LINUX_DIR_NAME := linux-rpi-4.0.y
 #KDIR  := /lib/modules/$(shell uname -r)/build
-KDIR  := /home/dpowazka/rpi/rpi-buildroot/output/build/linux-custom/
-export CROSS_COMPILE=/home/dpowazka/rpi/rpi-buildroot/output/host/usr/bin/arm-buildroot-linux-uclibcgnueabihf-
+KDIR  := $(BROOT_PATH)/output/build/$(LINUX_DIR_NAME)/
+
+export CROSS_COMPILE=$(BROOT_PATH)/output/host/usr/bin/arm-buildroot-linux-uclibcgnueabihf-
 export ARCH=arm
+
 PWD   := $(shell pwd)
 
 default:
